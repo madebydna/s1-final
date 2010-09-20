@@ -37,7 +37,7 @@ class TabularTest < Test::Unit::TestCase
       
       test "without data, rows can be added later" do
         @table = Tabular.new
-        @table.append_row([1,2,3])
+        @table.add_row([1,2,3])
         assert_equal 1, @table.rows.length
       end
   
@@ -68,6 +68,22 @@ class TabularTest < Test::Unit::TestCase
       assert_equal 12, @simple_table.at(1,"age")
     end
     
+    test "column can be accessed with a negative number" do
+      assert_equal ["Tom", "Beth", "George", "Laura", "Marilyn"], @simple_table.column(-3)
+    end
+    
+    test "raises NoColumnError if the column doesn't exist" do
+      assert_raise Tabular::NoColumnError do
+        @simple_table.column("last_name")
+      end
+    end
+    
+    test "raises NoColumnError if column is out of range" do
+      assert_raise Tabular::NoColumnError do
+        @simple_table.column(4)
+      end
+    end
+    
   end
   
   context "row manipulations" do
@@ -87,13 +103,13 @@ class TabularTest < Test::Unit::TestCase
     
     test "should be able to append a row at the end of the table" do
       current_number_of_rows = @simple_table.rows.length
-      @simple_table.append_row(["Mary", 40, "teacher"])
+      @simple_table.add_row(["Mary", 40, "teacher"])
       assert_equal (current_number_of_rows + 1), @simple_table.rows.length
     end
     
     test "should be able to insert a row at any position in the table" do
       third_row = @simple_table.row(2)
-      @simple_table.insert_row(2, ["Jane", 19, "shop assistant"])
+      @simple_table.add_row(["Jane", 19, "shop assistant"], 2)
       assert_not_same third_row, @simple_table.row(2)
       assert_equal ["Jane", 19, "shop assistant"], @simple_table.row(2)
     end
@@ -109,7 +125,13 @@ class TabularTest < Test::Unit::TestCase
         cell.is_a?(String) ? cell.reverse : cell
       end
       assert_equal "moT", @simple_table.at(0,0)
-    end    
+    end  
+    
+    test "raise NoRowError if row index is out of range" do
+      assert_raise Tabular::NoRowError do
+        @simple_table.delete_row(6)
+      end
+    end  
   end
   
   context "column manipulations" do 
@@ -134,14 +156,14 @@ class TabularTest < Test::Unit::TestCase
     
     test "can append a column" do
       to_append = ["location", "Italy", "Mexico", "USA", "Finland", "China"]
-      @simple_table.append_column(to_append)
+      @simple_table.add_column(to_append)
       assert_equal ["name", "age", "occupation", "location"], @simple_table.column_names
       assert_equal 4, @simple_table.rows.first.length
     end
     
     test "can insert a column at any position" do
       to_append = ["last name", "Brown", "Crimson", "Denim", "Ecru", "Fawn"]
-      @simple_table.insert_column(1, to_append)
+      @simple_table.add_column(to_append, 1)
       assert_equal ["name", "last name", "age", "occupation"], @simple_table.column_names
       assert_equal "Brown", @simple_table.at(0,1)
     end
@@ -188,7 +210,8 @@ class TabularTest < Test::Unit::TestCase
       @simple_table.select_columns do |col|
         col.all? {|c| Numeric === c } 
       end
-      assert_equal 1, @simple_table.columns.length
+      assert_equal 1, @simple_table.max_y
+      assert_equal ["age"], @simple_table.column_names
     end
     
   end

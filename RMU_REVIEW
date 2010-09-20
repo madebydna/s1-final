@@ -1,0 +1,13 @@
+The Tabular class implements all requirements for accessing, adding/deleting and modifying tabular data. This can be evidenced through the tests in test/tabular_test.rb, which test the requirements with a simple data set.
+
+The tests are ordered in groups for easier perusal:
+
+1. Initialization with and without data
+2. Accessing table data by column, row or both
+3. Row manipulation (adding, deleting, inserting, appending and transforming)
+4. Column manipulation (adding, deleting, inserting, appending and transforming)
+5. Filtering rows and columns by certain criteria
+
+s1-exam-data.yaml has been transformed by the code in test/manipulate_complex_data.rb and the yaml file can be found at 
+test/s1-exam-data-transformed.yaml
+

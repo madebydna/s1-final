@@ -1,6 +1,9 @@
 class Tabular
   
-  attr_reader :rows, :column_names, :columns, :headers
+  NoColumnError = Class.new(StandardError)
+  NoRowError = Class.new(StandardError)
+  
+  attr_reader :rows, :column_names, :headers
   
   # Should be initialized with an array of arrays and expects the first array to be the column headers
   # if options[:headers] is set to true
@@ -12,7 +15,14 @@ class Tabular
     else
       @rows = data
     end
-    @columns = @rows.transpose
+  end
+  
+  def max_x
+    @rows.length
+  end
+  
+  def max_y
+    @column_names.length
   end
   
   def at(row, col)
@@ -30,30 +40,25 @@ class Tabular
     @rows[idx]
   end
   
-  def append_row(new_row)
-    @rows << new_row
-    update_columns
-  end
-  
-  def insert_row(pos, new_row)
-    @rows.insert(pos, new_row) 
-    update_columns  
+  def add_row(new_row, pos=nil)
+    i = pos.nil? ? max_x : pos
+    raise NoRowError, "The row index is out of range" if !(-max_x..max_x).include?(i)
+    @rows.insert(i, new_row)
   end
   
   def delete_row(pos)
+    raise NoRowError, "The row index is out of range" if !(-max_x..max_x).include?(pos)
     @rows.delete_at(pos)
-    update_columns
   end
   
   def select_rows
     @rows = @rows.select {|row| yield row }
-    update_columns
   end
   
   def transform_row(pos, &block)
+    raise NoRowError, "The row index is out of range" if !(-max_x..max_x).include?(pos)
     new_row = @rows[pos].map {|cell| yield cell }
     @rows[pos].replace(new_row)
-    update_columns
   end
   
   # COLUMN METHODS
@@ -62,18 +67,19 @@ class Tabular
   # column header name should be an alias for a numeric index
   
   def column_index(pos)
-    if pos.is_a?(String) && @headers
-      i = @column_names.index(pos)
-    elsif pos.is_a?(String) && !@headers
-      #raise error if headers not enabled or if column name doesn't exist
+    i = @column_names.index(pos)
+    pos = i.nil? ? pos : i
+    
+    if pos.is_a?(String) || !(-max_y..max_y).include?(pos)
+      raise NoColumnError, "The column does not exist or the index is out of range"
     else
-      pos
+      return pos
     end
   end
   
   def column(pos)
     i = column_index(pos)
-    @columns[i]
+    @rows.map {|row| row[i] }
   end
   
   def rename_column(old_name, new_name)
@@ -82,22 +88,16 @@ class Tabular
     @column_names.insert(i, new_name)
   end
   
-  # appends column at the right side of the table
-  def append_column(new_column)
-    if headers
-      @column_names << new_column.shift
-    end
-    @columns << new_column
-    update_rows
-  end
+  # appends or inserts column, depending on whether a position argument is sent in
   
-  def insert_column(pos, new_column)
-    pos = column_index(pos)
-    if headers
-      @column_names.insert(pos, new_column.shift)
+  def add_column(col, pos=nil)
+    i = pos.nil? ? max_y : pos
+    if headers 
+      column_names.insert(i, col.shift)
     end
-    @columns.insert(pos, new_column)
-    update_rows
+    @rows.each do |row|
+      row.insert(i, col.shift)
+    end
   end
   
   def delete_column(pos)
@@ -105,31 +105,30 @@ class Tabular
     if headers
       @column_names.delete_at(pos)
     end
-    @columns.delete_at(pos)
-    update_rows
+    @rows.map {|row| row.delete_at(pos) }
   end
   
+  
   def select_columns
-    @columns = @columns.select {|col| yield col }
-    update_rows
+    selected = []
+    (0..(max_y - 1)).each do |i|
+      col = @rows.map {|row| row[i] }
+      selected << i if yield col
+    end
+    @rows.each do |row| 
+      row.replace(row.values_at(*selected))
+    end
+    @column_names = @column_names.values_at(*selected)
   end
   
   def transform_columns(pos, &block)
     pos = column_index(pos)
-    new_col = @columns[pos].map {|cell| yield cell }
-    @columns[pos].replace(new_col)
-    update_rows
+    @rows.each do |row|
+      row[pos] = yield row[pos]
+    end
   end
   
   # UTILITY METHODS
-  
-  def update_rows
-    @rows = @columns.transpose
-  end
-  
-  def update_columns
-    @columns = @rows.transpose
-  end
   
   def to_table
     @rows.unshift(@column_names)
